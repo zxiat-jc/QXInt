@@ -1,12 +1,14 @@
 ﻿#include "QXlnt.h"
 
+#include <QFile>
 #include <QMetaType>
 #include <QVariant>
+
 QXlnt::QXlnt()
 {
 }
 
-QXlnt::QXlnt(const QStringList& sheetsTitle)
+void QXlnt::setSheetsTitle(const QStringList& sheetsTitle)
 {
     int i = 0;
     for (int i = 0; i < sheetsTitle.length(); i++) {
@@ -84,4 +86,58 @@ size_t QXlnt::currentRowLength(QString sheetTitle)
     }
     auto&& worksheet = _sheetMap[sheetTitle];
     return worksheet.rows(true).length();
+}
+
+QList<QVariantList> QXlnt::readExcel(QString path)
+{
+    QList<QVariantList> result;
+    try {
+        xlnt::workbook wb;
+        wb.load(path.toStdString());
+        auto ws = wb.active_sheet();
+        for (auto row : ws.rows(true)) {
+            QVariantList str;
+            for (auto cell : row) {
+                QString content = QString::fromStdString(cell.to_string());
+                if (content.trimmed().isEmpty()) {
+                    continue;
+                }
+                str.append(QString::fromStdString(cell.to_string()));
+            }
+            qDebug() << str;
+            result.append(str);
+        }
+        qDebug() << "____process completed_____________";
+    } catch (std::exception& e) {
+        qDebug() << "___error: " << QString::fromStdString(e.what());
+        return {};
+    }
+    return result;
+}
+
+QString QXlnt::ConvertExcel2Txt(QString path, QString splitter, QString suffix, bool s)
+{
+    auto&& result = this->readExcel(path);
+    if (result.isEmpty()) {
+        return {};
+    }
+    QFile excelFile(path);
+    path.replace(path.length() - 4, 4, suffix);
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        return {};
+    }
+    QTextStream out(&file);
+    for (int i = 0; i < result.length(); i++) {
+        for (int j = 0; j < result[i].length(); j++) {
+            if (j == result[i].length() - 1 && !s) {
+                out << result[i][j].toString();
+            } else {
+                out << result[i][j].toString() << splitter;
+            }
+        }
+        out << "\n";
+    }
+    file.close();
+    return path;
 }

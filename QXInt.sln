@@ -5,6 +5,8 @@ VisualStudioVersion = 17.9.34728.123
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "QXInt", "QXInt\QXInt.vcxproj", "{4AE4E971-62D2-4F98-B96D-1CA976B8A443}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Test", "Test\Test.vcxproj", "{4B112E1E-E6ED-4D42-8157-D503E769593B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -15,6 +17,10 @@ Global
 		{4AE4E971-62D2-4F98-B96D-1CA976B8A443}.Debug|x64.Build.0 = Debug|x64
 		{4AE4E971-62D2-4F98-B96D-1CA976B8A443}.Release|x64.ActiveCfg = Release|x64
 		{4AE4E971-62D2-4F98-B96D-1CA976B8A443}.Release|x64.Build.0 = Release|x64
+		{4B112E1E-E6ED-4D42-8157-D503E769593B}.Debug|x64.ActiveCfg = Debug|x64
+		{4B112E1E-E6ED-4D42-8157-D503E769593B}.Debug|x64.Build.0 = Debug|x64
+		{4B112E1E-E6ED-4D42-8157-D503E769593B}.Release|x64.ActiveCfg = Release|x64
+		{4B112E1E-E6ED-4D42-8157-D503E769593B}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

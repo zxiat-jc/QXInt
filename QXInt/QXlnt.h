@@ -10,7 +10,7 @@ class QXINT_EXPORT QXlnt {
 public:
     QXlnt();
 
-    QXlnt(const QStringList& sheetsTitle);
+    void setSheetsTitle(const QStringList& sheetsTitle = {});
 
     /**
      * @brief 设置表单 单元格内容
@@ -52,6 +52,23 @@ public:
      * @return
      */
     size_t currentRowLength(QString sheetTitle);
+
+    /**
+     * @brief 去读excel文件
+     * @param path
+     * @return
+     */
+    QList<QVariantList> readExcel(QString path);
+
+    /**
+     * @brief 转换excel文件为txt文件
+     * @param path excel文件路径
+     * @param splitter 每个单元格之间的分隔符
+     * @param suffix txt文件后缀
+     * @param s 行尾是否加分隔符
+     * @return txt文件路径
+     */
+    QString ConvertExcel2Txt(QString path, QString splitter, QString suffix, bool s = true);
 
 private:
     xlnt::workbook _wb;
