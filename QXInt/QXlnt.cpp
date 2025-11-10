@@ -99,9 +99,9 @@ QList<QVariantList> QXlnt::readExcel(QString path)
             QVariantList str;
             for (auto cell : row) {
                 QString content = QString::fromStdString(cell.to_string());
-                if (content.trimmed().isEmpty()) {
-                    continue;
-                }
+                // if (content.trimmed().isEmpty()) {
+                //     continue;
+                // }
                 str.append(QString::fromStdString(cell.to_string()));
             }
             qDebug() << str;
