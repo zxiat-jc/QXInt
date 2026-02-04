@@ -4,58 +4,40 @@
 #include <QMetaType>
 #include <QVariant>
 
-QXlnt::QXlnt()
+
+QXlnt::QXlnt(QObject* parent)
 {
 }
 
-void QXlnt::setSheetsTitle(const QStringList& sheetsTitle)
+bool QXlnt::load(QString path)
 {
-    int i = 0;
-    for (int i = 0; i < sheetsTitle.length(); i++) {
-        if (i == 0) {
-            // 获取活动表单
-            _sheetMap[sheetsTitle[i]] = _wb.active_sheet();
-        } else {
-            // 新建表单
-            _sheetMap[sheetsTitle[i]] = _wb.create_sheet();
+    try {
+        _wb.load(path.toStdString());
+        _sheetMap.clear();
+
+        // 加载所有工作表到映射
+        for (const auto& sheet : _wb) {
+            QString title = QString::fromStdString(sheet.title());
+            _sheetMap[title] = sheet;
         }
-        // 设置表单标题
-        _sheetMap[sheetsTitle[i]].title(sheetsTitle[i].toStdString());
+
+        return true;
+    } catch (const std::exception& e) {
+        emit errored(QString("加载文件失败: %1").arg(e.what()));
+        return false;
     }
 }
 
-void QXlnt::setCell(QString sheetTitle, int row, int column, QVariant value)
+bool QXlnt::save(QString path)
 {
-    if (_sheetMap.contains(sheetTitle)) {
-        auto&& worksheet = _sheetMap[sheetTitle];
-        if (value.typeId() == QMetaType::Double) {
-            worksheet.cell(xlnt::cell_reference(column, row)).value(QString::number(value.toDouble(), 'f', 5).toDouble());
-        } else {
-            worksheet.cell(xlnt::cell_reference(column, row)).value(value.toString().toStdString());
-        }
-        worksheet.cell(xlnt::cell_reference(column, row)).alignment(xlnt::alignment().wrap(true).horizontal(xlnt::horizontal_alignment::center).vertical(xlnt::vertical_alignment::center));
-    }
-}
+    try {
+        _wb.save(path.toStdString());
 
-void QXlnt::setHeaders(QString sheetTitle, int column)
-{
-    if (_sheetMap.contains(sheetTitle)) {
-        auto currentRow = this->currentRowLength(sheetTitle);
-        if (currentRow <= 0) {
-            return;
-        }
-        auto&& worksheet = _sheetMap[sheetTitle];
-        xlnt::cell titleBlock = worksheet.cell(xlnt::cell_reference(1, currentRow));
-        titleBlock.value(sheetTitle.toStdString());
-        titleBlock.font(xlnt::font().size(25).bold(true).name("Arial"));
-        titleBlock.alignment(xlnt::alignment().wrap(false).horizontal(xlnt::horizontal_alignment::center).vertical(xlnt::vertical_alignment::center));
-        worksheet.merge_cells(xlnt::range_reference(xlnt::cell_reference(1, currentRow), xlnt::cell_reference(column, currentRow)));
+        return true;
+    } catch (const std::exception& e) {
+        emit errored(QString("保存文件失败: %1").arg(e.what()));
+        return false;
     }
-}
-
-void QXlnt::save(QString path)
-{
-    _wb.save(path.toStdString());
 }
 
 void QXlnt::setTitle(QString title)
@@ -63,81 +45,217 @@ void QXlnt::setTitle(QString title)
     _wb.title(title.toStdString());
 }
 
-void QXlnt::setDatas(QString sheetTitle, QList<QList<QVariant>> datas)
+bool QXlnt::createSheets(const QStringList& sheetsTitle)
 {
+    for (auto&& sheetTitle : sheetsTitle) {
+        try {
+            if (_sheetMap.contains(sheetTitle)) {
+                return true;
+            }
 
-    if (_sheetMap.contains(sheetTitle)) {
-        auto currentRow = this->currentRowLength(sheetTitle);
-        if (currentRow <= 0) {
-            return;
+            xlnt::worksheet ws;
+            if (_wb.sheet_count() == 0) {
+                ws = _wb.create_sheet();
+            } else if (_wb.contains(sheetTitle.toStdString())) {
+                ws = _wb.sheet_by_title(sheetTitle.toStdString());
+            } else {
+                ws = _wb.create_sheet();
+            }
+
+            ws.title(sheetTitle.toStdString());
+            _sheetMap[sheetTitle] = ws;
+
+            return true;
+        } catch (const std::exception& e) {
+            emit errored(QString("创建/选择工作表失败: %1").arg(e.what()));
+            return false;
         }
-        for (int i = 1; i <= datas.length(); i++) {
-            for (int j = 1; j <= datas[i - 1].length(); j++) {
-                this->setCell(sheetTitle, currentRow + i, j, datas[i - 1][j - 1]);
+    }
+    return true;
+}
+
+bool QXlnt::removeSheet(const QString& sheetTitle)
+{
+    try {
+        if (!_wb.contains(sheetTitle.toStdString())) {
+            emit errored("工作表不存在");
+            return false;
+        }
+
+        _wb.remove_sheet(_wb.sheet_by_title(sheetTitle.toStdString()));
+        _sheetMap.remove(sheetTitle);
+
+        return true;
+    } catch (const std::exception& e) {
+        emit errored(QString("删除工作表失败: %1").arg(e.what()));
+        return false;
+    }
+    return true;
+}
+
+bool QXlnt::setCell(const QString& sheetTitle, int row, int column, const QVariant& value)
+{
+    try {
+        auto&& opt = getSheet(sheetTitle);
+        if (!opt.has_value()) {
+            return false;
+        }
+        auto&& ws = opt.value();
+        auto cell = ws.cell(xlnt::cell_reference(column, row));
+        setXlntCellValue(cell, value);
+        cell.alignment(xlnt::alignment()
+                .wrap(true)
+                .horizontal(xlnt::horizontal_alignment::center)
+                .vertical(xlnt::vertical_alignment::center));
+    } catch (const std::exception& e) {
+        emit errored(QString("设置单元格失败: %1").arg(e.what()));
+        return false;
+    }
+    return true;
+}
+
+bool QXlnt::setDatas(QString sheetTitle, QList<QList<QVariant>> datas, int startRow, int startColumn)
+{
+    try {
+        auto sheetOpt = getSheet(sheetTitle);
+        if (!sheetOpt) {
+            return false;
+        }
+
+        auto& ws = sheetOpt.value();
+
+        for (int i = 0; i < datas.size(); ++i) {
+            for (int j = 0; j < datas[i].size(); ++j) {
+                this->setCell(sheetTitle, startRow + i, startColumn + j, datas[i][j]);
             }
         }
+        return true;
+    } catch (const std::exception& e) {
+        emit errored(QString("设置数据失败: %1").arg(e.what()));
+        return false;
     }
 }
 
-size_t QXlnt::currentRowLength(QString sheetTitle)
-{
-    if (!_sheetMap.contains(sheetTitle)) {
-        return 0;
-    }
-    auto&& worksheet = _sheetMap[sheetTitle];
-    return worksheet.rows(true).length();
-}
-
-QList<QVariantList> QXlnt::readExcel(QString path)
+QList<QVariantList> QXlnt::readSheet(const QString& sheetTitle) const
 {
     QList<QVariantList> result;
+
     try {
-        xlnt::workbook wb;
-        wb.load(path.toStdString());
-        auto ws = wb.active_sheet();
-        for (auto row : ws.rows(true)) {
-            QVariantList str;
-            for (auto cell : row) {
-                QString content = QString::fromStdString(cell.to_string());
-                // if (content.trimmed().isEmpty()) {
-                //     continue;
-                // }
-                str.append(QString::fromStdString(cell.to_string()));
-            }
-            qDebug() << str;
-            result.append(str);
+        auto&& opt = this->getSheet(sheetTitle);
+        if (!opt.has_value()) {
+            return result;
         }
-        qDebug() << "____process completed_____________";
-    } catch (std::exception& e) {
-        qDebug() << "___error: " << QString::fromStdString(e.what());
-        return {};
+
+        auto&& ws = opt.value();
+        for (auto row : ws.rows(false)) {
+            QVariantList rowData;
+            for (auto cell : row) {
+                rowData.append(getXlntCellValue(cell));
+            }
+            result.append(rowData);
+        }
+
+    } catch (const std::exception& e) {
+        qDebug() << "读取工作表失败:" << e.what();
     }
+
     return result;
 }
 
-QString QXlnt::ConvertExcel2Txt(QString path, QString splitter, QString suffix, bool s)
+bool QXlnt::convertToText(const QString& excelPath, const QString& txtPath, const QString& delimiter, bool includeTrailingSeparator)
 {
-    auto&& result = this->readExcel(path);
-    if (result.isEmpty()) {
-        return {};
-    }
-    QFile excelFile(path);
-    path.replace(path.length() - 4, 4, suffix);
-    QFile file(path);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        return {};
-    }
-    QTextStream out(&file);
-    for (int i = 0; i < result.length(); i++) {
-        for (int j = 0; j < result[i].length(); j++) {
-            if (j == result[i].length() - 1 && !s) {
-                out << result[i][j].toString();
-            } else {
-                out << result[i][j].toString() << splitter;
+    try {
+        if (!load(excelPath)) {
+            emit errored("无法加载 Excel 文件");
+            return false;
+        }
+
+        QFile file(txtPath);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            emit errored("无法创建 TXT 文件");
+            return false;
+        }
+
+        QTextStream out(&file);
+        for (auto&& sheetName : _sheetMap.keys()) {
+            auto&& data = readSheet(sheetName);
+            for (const auto& row : data) {
+                for (int i = 0; i < row.size(); ++i) {
+                    out << row[i].toString();
+
+                    if (i < row.size() - 1 || includeTrailingSeparator) {
+                        out << delimiter;
+                    }
+                }
+                out << "\n";
             }
         }
-        out << "\n";
+        file.close();
+
+        return true;
+
+    } catch (const std::exception& e) {
+        emit errored(QString("转换失败: %1").arg(e.what()));
+        return false;
     }
-    file.close();
-    return path;
+}
+
+std::optional<xlnt::worksheet> QXlnt::getSheet(const QString& sheetTitle) const
+{
+    if (hasSheet(sheetTitle)) {
+        return _wb.sheet_by_title(sheetTitle.toStdString());
+    }
+    return std::nullopt;
+}
+
+QVariant QXlnt::getXlntCellValue(const xlnt::cell& cell) const
+{
+    if (!cell.has_value()) {
+        return QVariant();
+    }
+
+    switch (cell.data_type()) {
+    case xlnt::cell::type::number:
+        return cell.value<double>();
+
+    case xlnt::cell::type::boolean:
+        return cell.value<bool>();
+
+    case xlnt::cell::type::shared_string:
+    case xlnt::cell::type::inline_string:
+    case xlnt::cell::type::formula_string:
+        return QString::fromStdString(cell.value<std::string>());
+
+    default:
+        return QString::fromStdString(cell.to_string());
+    }
+}
+
+void QXlnt::setXlntCellValue(xlnt::cell& cell, const QVariant& value)
+{
+    switch (value.typeId()) {
+    case QMetaType::Int:
+    case QMetaType::LongLong:
+        cell.value(value.toLongLong());
+        break;
+
+    case QMetaType::Double:
+    case QMetaType::Float:
+        cell.value(value.toDouble());
+        break;
+
+    case QMetaType::Bool:
+        cell.value(value.toBool());
+        break;
+
+    case QMetaType::QString:
+    default:
+        cell.value(value.toString().toStdString());
+        break;
+    }
+}
+
+bool QXlnt::hasSheet(const QString& sheetTitle) const
+{
+    return _wb.contains(sheetTitle.toStdString());
 }

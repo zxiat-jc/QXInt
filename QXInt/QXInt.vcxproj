@@ -111,7 +111,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="qxlnt_global.h" />
-    <ClInclude Include="QXlnt.h" />
+    <QtMoc Include="QXlnt.h" />
     <ClCompile Include="QXlnt.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

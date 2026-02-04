@@ -6,32 +6,22 @@
 #include <QObject>
 
 #include <xlnt/xlnt.hpp>
-class QXINT_EXPORT QXlnt {
+class QXINT_EXPORT QXlnt : public QObject {
+    Q_OBJECT
 public:
-    QXlnt();
-
-    void setSheetsTitle(const QStringList& sheetsTitle = {});
+    explicit QXlnt(QObject* parent = nullptr);
 
     /**
-     * @brief 设置表单 单元格内容
-     * @param sheetTitle 表单标题
-     * @param row
-     * @param column
-     * @param value
+     * @brief 保存 Excel 文件
+     * @param path 文件路径
+     * @return 成功返回 true，失败返回 false
      */
-    void setCell(QString sheetTitle, int column, int row, QVariant value);
-
-    /**
-     * @brief 设置表单 表头
-     * @param sheetTitle 表单标题
-     * @param column
-     */
-    void setHeaders(QString sheetTitle, int column);
+    bool load(QString path);
 
     /**
      * @brief 保存excel文件
      */
-    void save(QString path);
+    bool save(QString path);
 
     /**
      * @brief 设置excel文件标题
@@ -40,35 +30,85 @@ public:
     void setTitle(QString title);
 
     /**
+     * @brief 创建
+     * @param sheetsTitle
+     * @return
+     */
+    bool createSheets(const QStringList& sheetsTitle = {});
+
+    /**
+     * @brief 删除表单
+     * @param sheetTitle
+     * @return
+     */
+    bool removeSheet(const QString& sheetTitle);
+
+    /**
+     * @brief 设置表单 单元格内容
+     * @param sheetTitle 表单标题
+     * @param row
+     * @param column
+     * @param value
+     */
+    bool setCell(const QString& sheetTitle, int row, int column, const QVariant& value);
+
+    /**
      * @brief 设置表单内容
      * @param sheetTitle
      * @param datas
      */
-    void setDatas(QString sheetTitle, QList<QList<QVariant>> datas);
+    bool setDatas(QString sheetTitle, QList<QList<QVariant>> datas, int startRow = 0, int startColumn = 0);
 
     /**
-     * @brief 获取当前表单的总行数
+     * @brief 读取表单内容
      * @param sheetTitle
      * @return
      */
-    size_t currentRowLength(QString sheetTitle);
+    QList<QVariantList> readSheet(const QString& sheetTitle) const;
 
     /**
-     * @brief 去读excel文件
-     * @param path
+     * @brief 转换为文本文件
+     * @param excelPath
+     * @param txtPath
+     * @param delimiter 分隔符
+     * @param includeTrailingSeparator
      * @return
      */
-    QList<QVariantList> readExcel(QString path);
+    bool convertToText(const QString& excelPath, const QString& txtPath, const QString& delimiter, bool includeTrailingSeparator);
+signals :
+    /**
+     * @brief 错误信号
+     */
+    void errored(const QString& error);
+
+private:
+    /**
+     * @brief 获取 xlnt 表单
+     * @param sheetTitle
+     * @return
+     */
+    std::optional<xlnt::worksheet> getSheet(const QString& sheetTitle) const;
 
     /**
-     * @brief 转换excel文件为txt文件
-     * @param path excel文件路径
-     * @param splitter 每个单元格之间的分隔符
-     * @param suffix txt文件后缀
-     * @param s 行尾是否加分隔符
-     * @return txt文件路径
+     * @brief 获取 xlnt 单元格内容
+     * @param cell
+     * @return
      */
-    QString ConvertExcel2Txt(QString path, QString splitter, QString suffix, bool s = true);
+    QVariant getXlntCellValue(const xlnt::cell& cell) const;
+
+    /**
+     * @brief 设置 xlnt 单元格内容
+     * @param cell
+     * @param value
+     */
+    void setXlntCellValue(xlnt::cell& cell, const QVariant& value);
+
+    /**
+     * @brief xlnt 表单是否存在
+     * @param sheetTitle
+     * @return
+     */
+    bool hasSheet(const QString& sheetTitle) const;
 
 private:
     xlnt::workbook _wb;
