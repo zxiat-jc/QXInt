@@ -9,7 +9,18 @@
 class QXINT_EXPORT QXlnt : public QObject {
     Q_OBJECT
 public:
+    enum BorderSideFlag {
+        BorderLeft = 0x1,
+        BorderRight = 0x2,
+        BorderTop = 0x4,
+        BorderBottom = 0x8,
+        BorderAll = BorderLeft | BorderRight | BorderTop | BorderBottom
+    };
+    Q_DECLARE_FLAGS(BorderSides, BorderSideFlag)
+
     explicit QXlnt(QObject* parent = nullptr);
+
+    ~QXlnt();
 
     /**
      * @brief 保存 Excel 文件
@@ -60,6 +71,38 @@ public:
     bool setDatas(QString sheetTitle, QList<QList<QVariant>> datas, int startRow = 0, int startColumn = 0);
 
     /**
+     * @brief 设置单元格边框
+     * @param sheetTitle
+     * @param row
+     * @param column
+     * @return
+     */
+    bool setCellBorder(const QString& sheetTitle, int row, int column, BorderSides sides = BorderAll);
+
+    /**
+     * @brief 设置范围边框
+     * @param sheetTitle
+     * @param startRow
+     * @param startColumn
+     * @param endRow
+     * @param endColumn
+     * @param sides
+     * @return
+     */
+    bool setRangeBorder(const QString& sheetTitle, int startRow, int startColumn, int endRow, int endColumn, BorderSides sides = BorderAll);
+
+    /**
+     * @brief 合并单元格
+     * @param sheetTitle
+     * @param startRow
+     * @param startColumn
+     * @param endRow
+     * @param endColumn
+     * @return
+     */
+    bool mergeCells(const QString& sheetTitle, int startRow, int startColumn, int endRow, int endColumn);
+
+    /**
      * @brief 读取表单内容
      * @param sheetTitle
      * @return
@@ -75,7 +118,7 @@ public:
      * @return
      */
     bool convertToText(const QString& excelPath, const QString& txtPath, const QString& delimiter, bool includeTrailingSeparator);
-signals :
+signals:
     /**
      * @brief 错误信号
      */

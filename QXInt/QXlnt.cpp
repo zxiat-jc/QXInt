@@ -4,9 +4,13 @@
 #include <QMetaType>
 #include <QVariant>
 
-
 QXlnt::QXlnt(QObject* parent)
 {
+}
+
+QXlnt::~QXlnt()
+{
+    _sheetMap.clear();
 }
 
 bool QXlnt::load(QString path)
@@ -132,6 +136,79 @@ bool QXlnt::setDatas(QString sheetTitle, QList<QList<QVariant>> datas, int start
         return true;
     } catch (const std::exception& e) {
         emit errored(QString("设置数据失败: %1").arg(e.what()));
+        return false;
+    }
+}
+
+bool QXlnt::setCellBorder(const QString& sheetTitle, int row, int column, BorderSides sides)
+{
+    try {
+        auto opt = getSheet(sheetTitle);
+        if (!opt.has_value()) {
+            return false;
+        }
+        auto ws = opt.value();
+        auto cell = ws.cell(xlnt::cell_reference(column, row));
+
+        xlnt::border b;
+        auto prop = xlnt::border::border_property().style(xlnt::border_style::thin);
+        if (sides.testFlag(BorderLeft)) {
+            b.side(xlnt::border_side::start, prop);
+        }
+        if (sides.testFlag(BorderRight)) {
+            b.side(xlnt::border_side::end, prop);
+        }
+        if (sides.testFlag(BorderTop)) {
+            b.side(xlnt::border_side::top, prop);
+        }
+        if (sides.testFlag(BorderBottom)) {
+            b.side(xlnt::border_side::bottom, prop);
+        }
+
+        cell.border(b);
+        return true;
+    } catch (const std::exception& e) {
+        emit errored(QString("设置单元格边框失败: %1").arg(e.what()));
+        return false;
+    }
+}
+
+bool QXlnt::setRangeBorder(const QString& sheetTitle, int startRow, int startColumn, int endRow, int endColumn, BorderSides sides)
+{
+    try {
+        auto opt = getSheet(sheetTitle);
+        if (!opt.has_value()) {
+            return false;
+        }
+
+        for (int r = startRow; r <= endRow; ++r) {
+            for (int c = startColumn; c <= endColumn; ++c) {
+                setCellBorder(sheetTitle, r, c, sides);
+            }
+        }
+        return true;
+    } catch (const std::exception& e) {
+        emit errored(QString("设置区域边框失败: %1").arg(e.what()));
+        return false;
+    }
+}
+
+bool QXlnt::mergeCells(const QString& sheetTitle, int startRow, int startColumn, int endRow, int endColumn)
+{
+    try {
+        auto opt = getSheet(sheetTitle);
+        if (!opt.has_value()) {
+            return false;
+        }
+        auto ws = opt.value();
+
+        xlnt::cell_reference start(startColumn, startRow);
+        xlnt::cell_reference end(endColumn, endRow);
+        xlnt::range_reference range(start, end);
+        ws.merge_cells(range);
+        return true;
+    } catch (const std::exception& e) {
+        emit errored(QString("合并单元格失败: %1").arg(e.what()));
         return false;
     }
 }
