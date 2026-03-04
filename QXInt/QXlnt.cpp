@@ -336,3 +336,44 @@ bool QXlnt::hasSheet(const QString& sheetTitle) const
 {
     return _wb.contains(sheetTitle.toStdString());
 }
+
+//==============历史项目依赖================
+void QXlnt::setSheetsTitle(const QStringList& sheetsTitle)
+{
+    int i = 0;
+    for (int i = 0; i < sheetsTitle.length(); i++) {
+        if (i == 0) {
+            // 获取活动表单
+            _sheetMap[sheetsTitle[i]] = _wb.active_sheet();
+        } else {
+            // 新建表单
+            _sheetMap[sheetsTitle[i]] = _wb.create_sheet();
+        }
+        // 设置表单标题
+        _sheetMap[sheetsTitle[i]].title(sheetsTitle[i].toStdString());
+    }
+}
+void QXlnt::setHeaders(QString sheetTitle, int column)
+{
+    if (_sheetMap.contains(sheetTitle)) {
+        auto currentRow = this->currentRowLength(sheetTitle);
+        if (currentRow <= 0) {
+            return;
+        }
+        auto&& worksheet = _sheetMap[sheetTitle];
+        xlnt::cell titleBlock = worksheet.cell(xlnt::cell_reference(1, currentRow));
+        titleBlock.value(sheetTitle.toStdString());
+        titleBlock.font(xlnt::font().size(25).bold(true).name("Arial"));
+        titleBlock.alignment(xlnt::alignment().wrap(false).horizontal(xlnt::horizontal_alignment::center).vertical(xlnt::vertical_alignment::center));
+        worksheet.merge_cells(xlnt::range_reference(xlnt::cell_reference(1, currentRow), xlnt::cell_reference(column, currentRow)));
+    }
+}
+size_t QXlnt::currentRowLength(QString sheetTitle)
+{
+    if (!_sheetMap.contains(sheetTitle)) {
+        return 0;
+    }
+    auto&& worksheet = _sheetMap[sheetTitle];
+    return worksheet.rows(true).length();
+}
+//==============历史项目依赖================

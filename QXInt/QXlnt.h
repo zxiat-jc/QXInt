@@ -118,6 +118,22 @@ public:
      * @return
      */
     bool convertToText(const QString& excelPath, const QString& txtPath, const QString& delimiter, bool includeTrailingSeparator);
+
+    //==============历史项目依赖================
+    void setSheetsTitle(const QStringList& sheetsTitle = {});
+    /**
+     * @brief 设置表单 表头
+     * @param sheetTitle 表单标题
+     * @param column
+     */
+    void setHeaders(QString sheetTitle, int column);
+    /**
+     * @brief 获取当前表单的总行数
+     * @param sheetTitle
+     * @return
+     */
+    size_t currentRowLength(QString sheetTitle);
+    //==============历史项目依赖================
 signals:
     /**
      * @brief 错误信号
