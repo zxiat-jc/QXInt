@@ -69,7 +69,6 @@ bool QXlnt::createSheets(const QStringList& sheetsTitle)
             ws.title(sheetTitle.toStdString());
             _sheetMap[sheetTitle] = ws;
 
-            return true;
         } catch (const std::exception& e) {
             emit errored(QString("创建/选择工作表失败: %1").arg(e.what()));
             return false;

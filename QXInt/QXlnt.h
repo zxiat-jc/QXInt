@@ -68,7 +68,7 @@ public:
      * @param sheetTitle
      * @param datas
      */
-    bool setDatas(QString sheetTitle, QList<QList<QVariant>> datas, int startRow = 0, int startColumn = 0);
+    bool setDatas(QString sheetTitle, QList<QList<QVariant>> datas, int startRow = 1, int startColumn = 1);
 
     /**
      * @brief 设置单元格边框
